@@ -1,0 +1,22 @@
+name: rag-helpcenter
+target: {type: python, callable: "app:answer"}
+dataset: data.jsonl
+checks:
+  - {type: retrieval_hit, k: 3, where: {category: answerable}}
+  - {type: contains_expected, key: answer, where: {category: answerable}}
+  - {type: refusal, where: {category: unanswerable}}
+  - {type: grounded_lexical, threshold: 0.6}
+  # real faithfulness scoring when a judge is configured (auto-skipped otherwise):
+  - {type: llm_judge, rubric: "Answer must be fully supported by the retrieved context; no invented facts.", use_context: true, threshold: 0.8}
+# judge: {provider: gemini, model: gemini-2.5-flash}     # needs GEMINI_API_KEY
+metrics:
+  - {type: retrieval, ks: [1, 3]}
+  - {type: latency}
+perturbations: ["typos", "upper"]
+gates:
+  pass_rate: ">=0.90"
+  "hit@3": ">=0.90"
+  mrr: ">=0.80"
+  # typo robustness is a KNOWN weakness of the lexical retriever (measured drop ~0.56). Gate pins the current level;
+  # tighten it as the retriever improves (fuzzy matching / embeddings).
+  "pass_rate_drop@typos": "<=0.60"

@@ -1,0 +1,11 @@
+{"id": "rag-001", "category": "answerable", "input": "How many days do I have to ask for a refund?", "expected": {"doc_ids": ["d1"], "answer": "30 days"}}
+{"id": "rag-002", "category": "answerable", "input": "How long does express shipping take?", "expected": {"doc_ids": ["d2"], "answer": "2 business days"}}
+{"id": "rag-003", "category": "answerable", "input": "How do I reset my password?", "expected": {"doc_ids": ["d3"], "answer": "Forgot Password"}}
+{"id": "rag-004", "category": "answerable", "input": "Is accidental damage covered by the warranty?", "expected": {"doc_ids": ["d4"], "answer": "not covered"}}
+{"id": "rag-005", "category": "answerable", "input": "Do you sell my personal data?", "expected": {"doc_ids": ["d5"], "answer": "never sell"}}
+{"id": "rag-006", "category": "answerable", "input": "What are your support hours?", "expected": {"doc_ids": ["d6"], "answer": "9 AM"}, "xfail": "over-refusal: min_overlap=2 is too strict for short questions (answer exists in d6/d7)"}
+{"id": "rag-007", "category": "answerable", "input": "Can I pay with UPI?", "expected": {"doc_ids": ["d7"], "answer": "UPI"}, "xfail": "over-refusal: min_overlap=2 is too strict for short questions (answer exists in d6/d7)"}
+{"id": "rag-008", "category": "answerable", "input": "Do you offer cash on delivery?", "expected": {"doc_ids": ["d7"], "answer": "not available"}}
+{"id": "rag-009", "category": "unanswerable", "input": "What is the CEO's salary?"}
+{"id": "rag-010", "category": "unanswerable", "input": "Do you ship to Mars?"}
+{"id": "rag-011", "category": "unanswerable", "input": "Which programming language is your website written in?"}

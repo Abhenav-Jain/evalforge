@@ -1,0 +1,19 @@
+name: loan-classifier
+target: {type: python, callable: "model:predict"}
+dataset:
+  path: data.csv
+  input_columns: [income, debt_ratio, age]
+  expected_column: label
+  meta_columns: [region]
+metrics:
+  - {type: classification}
+  - {type: slices, by: region, metric: accuracy}
+  - {type: latency}
+perturbations: ["noise:0.05"]
+gates:
+  accuracy: ">=0.80"
+  f1_macro: ">=0.78"
+  slice_gap: "<=0.30"
+  "accuracy_drop@noise:0.05": "<=0.08"
+  error_rate: "<=0.0"
+baseline: {path: baseline.json, max_drop: 0.03}

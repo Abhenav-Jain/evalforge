@@ -1,0 +1,7 @@
+name: liveprep-guardrail
+target: {type: python, callable: "guardrail:decide"}
+dataset: data.jsonl
+checks: [{type: equals_expected}]
+metrics: [{type: latency}]
+gates:
+  pass_rate: ">=1.0"

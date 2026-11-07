@@ -1,0 +1,51 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>evalforge</title><style>
+:root{--bg:#fff;--card:#f6f7f9;--tx:#15181d;--mu:#667085;--bd:#e3e6eb;--ok:#12805c;--bad:#c4321c;--warn:#a15c00;--ac:#3b5bdb}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#181b21;--tx:#e8eaee;--mu:#98a2b3;--bd:#2a2f38;--ok:#3ecf8e;--bad:#ff6b57;--warn:#f5b041;--ac:#7c93ff}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:16px 24px;border-bottom:1px solid var(--bd);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:18px;margin:0}main{max-width:1100px;margin:0 auto;padding:20px 24px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+button{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;padding:6px 12px;cursor:pointer}
+button.on,button.go{background:var(--ac);color:#fff;border-color:var(--ac)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:10px 0 22px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
+.k{color:var(--mu);font-size:12px}.v{font-size:20px;font-weight:600}.ok{color:var(--ok)}.bad{color:var(--bad)}.mu{color:var(--mu)}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu);margin:22px 0 4px}
+table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+tr.row{cursor:pointer}.pill{padding:1px 8px;border-radius:99px;font-size:12px;border:1px solid var(--bd)}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--bd);min-width:120px}
+textarea,select{width:100%;font:inherit;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px}
+pre{white-space:pre-wrap;word-break:break-word;margin:4px 0}.dots span{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+</style></head><body>
+<header><h1>evalforge</h1><span class="mu">universal AI/ML evaluation dashboard</span><div class="tabs" id="tabs"></div></header>
+<main><div style="display:flex;gap:10px;align-items:center"><button class="go" id="run">Run evaluation</button><span id="st" class="mu"></span><span class="dots" id="hist"></span></div>
+<div id="out" class="mu" style="margin-top:14px">Pick a suite and press Run.</div>
+<h2>Playground: test one input live</h2><div class="card"><textarea id="pin" rows="3" placeholder="Type an input (JSON for structured inputs)"></textarea>
+<div style="display:flex;gap:8px;margin:8px 0"><select id="pcat" style="max-width:220px"></select><button class="go" id="pgo">Test</button></div><div id="pout"></div></div></main>
+<script>
+const $=s=>document.querySelector(s);let cur=null,suites=[],filt="all";
+function h(t,a,...k){const e=document.createElement(t);for(const[x,y]of Object.entries(a||{}))x==="class"?e.className=y:x==="onclick"?e.onclick=y:e.setAttribute(x,y);for(const c of k.flat())e.append(c==null?"":c);return e}
+const f=v=>typeof v==="number"?(Number.isInteger(v)?v:v.toFixed(4)):String(v);
+async function api(u,o){const r=await fetch(u,o);if(!r.ok)throw new Error(await r.text());return r.json()}
+async function init(){suites=await api("/api/suites");const t=$("#tabs");suites.forEach(s=>t.append(h("button",{onclick:()=>pick(s.id)},s.name+" · "+s.n_cases)));pick(suites[0].id)}
+function pick(id){cur=suites.find(s=>s.id===id);[...$("#tabs").children].forEach((b,i)=>b.className=suites[i].id===id?"on":"");
+ $("#pcat").replaceChildren(...cur.categories.map(c=>h("option",{value:c},c)));$("#out").replaceChildren("Press Run to evaluate "+cur.name+" ("+cur.target+" target).");$("#pout").replaceChildren();loadHist()}
+async function loadHist(){const hs=await api("/api/history/"+cur.id);$("#hist").replaceChildren(...hs.map(x=>h("span",{title:new Date(x.ts*1000).toLocaleTimeString()+" pass_rate="+x.pass_rate,style:"background:var(--"+(x.ok?"ok":"bad")+")"})))}
+$("#run").onclick=async()=>{$("#st").textContent="running…";try{render(await api("/api/run/"+cur.id,{method:"POST"}));$("#st").textContent="";loadHist()}catch(e){$("#st").textContent="error: "+e.message}};
+function render(e){const r=e.report,m=r.metrics,p=e.prev_metrics,o=$("#out");o.className="";
+ const head=h("div",{class:"card"},h("span",{class:"v "+(r.ok?"ok":"bad")},r.ok?"✔ ALL GATES PASSED":"✘ GATE FAILED")," ",h("span",{class:"mu"},r.n_cases+" cases · "+e.duration_s+"s"));
+ const gates=h("div",{class:"grid"},r.gates.map(g=>h("div",{class:"card"},h("div",{class:"k"},g.metric+"  "+g.expr),h("div",{class:"v "+(g.passed?"ok":"bad")},(g.passed?"✔ ":"✘ ")+(g.value==null?"n/a":f(g.value))),g.note?h("div",{class:"k"},g.note):"")));
+ const skip=["n_cases","n_passed","n_failed","n_xfail","n_xpass"],keys=Object.keys(m).filter(k=>!k.includes("@")&&!skip.includes(k)&&typeof m[k]==="number").sort();
+ const mets=h("div",{class:"grid"},keys.map(k=>{const d=p&&typeof p[k]==="number"?m[k]-p[k]:null;return h("div",{class:"card"},h("div",{class:"k"},k),h("div",{class:"v"},f(m[k]),d?h("span",{class:"k"},"  "+(d>0?"▲":"▼")+Math.abs(d).toFixed(4)):""))}));
+ const rob=Object.keys(m).filter(k=>/_(drop|increase)@/.test(k));
+ const cats=Object.entries(r.categories),tot=s=>Object.values(s).reduce((a,b)=>a+b,0),col={passed:"ok",failed:"bad",xfail:"warn",xpass:"warn",unchecked:"mu"};
+ const catT=h("table",{},h("tr",{},["category","results","passed","failed","known (xfail)"].map(x=>h("th",{},x))),cats.map(([c,s])=>h("tr",{},h("td",{},c),h("td",{},h("div",{class:"bar"},Object.entries(s).map(([k,v])=>h("span",{style:"width:"+100*v/tot(s)+"%;background:var(--"+(col[k]||"mu")+")",title:k+" "+v})))),h("td",{},s.passed||0),h("td",{},s.failed||0),h("td",{},s.xfail||0))));
+ const fl=["all","failed","xfail","passed"].map(x=>h("button",{class:filt===x?"on":"",onclick:()=>{filt=x;render(e)}},x));
+ const rows=r.cases.filter(c=>filt==="all"||c.status===filt).flatMap(c=>{const d=h("tr",{style:"display:none"},h("td",{colspan:4},h("pre",{},"input:  "+c.input),h("pre",{},"output: "+c.output+(c.tool_calls.length?"\ntools:  "+c.tool_calls.join(", "):"")),c.failed_checks.length?h("pre",{class:"bad"},c.failed_checks.join("\n")):"",c.xfail?h("pre",{class:"mu"},"known issue: "+c.xfail):""));
+  return[h("tr",{class:"row",onclick:()=>d.style.display=d.style.display?"":"none"},h("td",{},c.id),h("td",{},c.category),h("td",{},h("span",{class:"pill "+(col[c.status]||"")},c.status)),h("td",{class:"mu"},c.input.slice(0,70))),d]});
+ o.replaceChildren(head,h("h2",{},"Quality gates"),gates,h("h2",{},"Metrics"),mets,rob.length?h("h2",{},"Robustness"):"",rob.length?h("div",{class:"grid"},rob.map(k=>h("div",{class:"card"},h("div",{class:"k"},k),h("div",{class:"v"},f(m[k]))))):"",h("h2",{},"By category"),catT,h("h2",{},"Cases"),h("div",{style:"display:flex;gap:6px;margin:6px 0"},fl),h("table",{},rows))}
+$("#pgo").onclick=async()=>{const o=$("#pout");o.textContent="…";try{const r=await api("/api/playground/"+cur.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({input:$("#pin").value,category:$("#pcat").value})});
+ o.replaceChildren(h("div",{class:"k"},"output · "+r.latency_ms+" ms"),h("pre",{},r.error?"ERROR: "+r.error:r.text||JSON.stringify(r.prediction)),r.tool_calls.length?h("pre",{},"tool calls: "+JSON.stringify(r.tool_calls)):"",r.contexts.length?h("pre",{class:"mu"},"retrieved: "+r.contexts.map(c=>c.id).join(", ")):"",...r.checks.filter(c=>!c.skipped).map(c=>h("div",{class:c.passed?"ok":"bad"},(c.passed?"✔ ":"✘ ")+c.type+(c.detail&&!c.passed?": "+c.detail:""))))}catch(e){o.textContent="error: "+e.message}};
+init();
+</script></body></html>

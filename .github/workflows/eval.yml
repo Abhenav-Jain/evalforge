@@ -1,0 +1,20 @@
+name: eval
+on: [push, pull_request]
+jobs:
+  test-and-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+      - name: Framework unit tests + example suites
+        run: pytest -q
+      - name: Run evaluation suites (quality gates)
+        run: python -m evalforge run examples/classifier/suite.yaml examples/rag/suite.yaml examples/llm_safety/suite.yaml examples/liveprep_guardrail/suite.yaml --out results
+      - name: Publish reports to job summary
+        if: always()
+        run: for f in results/*/report.md; do cat "$f" >> "$GITHUB_STEP_SUMMARY"; echo >> "$GITHUB_STEP_SUMMARY"; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: eval-reports, path: results/ }
